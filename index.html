@@ -1,0 +1,235 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link href="Content/bootstrap.css" rel="stylesheet" />
+    <style>
+        #myApp {
+            display: none;
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 8vh;
+        }
+    </style>
+</head>
+<body>
+    <!--   ------------------website html template-----------------  -->
+    <!-- Start html -->
+    <div id="myApp">
+        <header class="bg-primary dropdown-header">
+            <h2 class="text-white"> Api Data Representation</h2>
+        </header>
+        <div class="container p-3">
+            <div class="jumbotron">
+                <h1 class="display-2"> Prizes Nobel </h1>
+                <hr />
+
+                <div class="row p-2 border-top-0 border-bottom m-sm-2">
+                    <div class="col-3">
+                        <label class="col-form-label font-weight-bold" for="year">Select Year:</label>
+                        <input id="year" type="range" name="name" value="" class="form-control-range" oninput="this.nextElementSibling.value = this.value" />
+                        <output class="bg-warning text-dark p-1 rounded-lg m-1 small col-2">1500</output>
+                    </div>
+                    <div class="col-3">
+                        <label class="col-form-label font-weight-bold text-center" for="category">Select Category:</label>
+                        <select id="category" class="text-center custom-select">
+                            <option value="">All categories</option>
+
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <label class="col-form-label font-weight-bold text-center" for="sortOptions">Sort Options:</label>
+                        <select id="sortOptions" class="text-center custom-select">
+                            <option value="yearAsc" selected>Default</option>
+                            <option value="yearAsc">Year Asc &#8595 </option>
+                            <option value="yearDesc">Year Desc &#8593 </option>
+                            <option value="categoryDesc">Category Desc &#8593 </option>
+                            <option value="categoryAsc">Category Asc  &#8595 </option>
+                        </select>
+                    </div>
+                </div>
+
+
+
+                <table class="table table-bordered table-dark table-hover">
+
+                    <thead class="text-center">
+                        <tr class="bg-info">
+                            <th scope="col">Year</th>
+                            <th scope="col">Category</th>
+                            <th scope="col" >Lauteanes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-center">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer class="bg-dark blockquote-footer">
+            <h2 class="text-white-50"> Prize Nobel Table</h2>
+        </footer>
+    </div>
+    <!--   End html -->
+    <!--  Start js section-->
+    <script src="Scripts/jquery-3.6.0.js"></script>
+    <script>
+
+        function GetCountry(laureateId) {
+            // ajax request get laureate
+            var settings = {
+                "url": "https://api.nobelprize.org/v1/laureate.json?id=" + laureateId,
+                "method": "GET",
+                "timeout": 0,
+            };
+
+            $.ajax(settings).done(function (response) {
+                console.log(response);
+                let id = "#" + laureateId;
+                let country = response.laureates[0].bornCountry;
+                $(id).attr("title", country);
+            });
+            console.log($(this).attr("id"));
+        }
+
+
+
+
+
+
+        // ajax request get prize
+        var settings = {
+            "url": "https://api.nobelprize.org/v1/prize.json?",
+            "method": "GET",
+            "timeout": 0,
+        };
+
+        $.ajax(settings).done(function (response) {
+
+            $("#myApp").show();
+            let prizes = response.prizes;
+            console.log(prizes);
+
+            InitFiltering(prizes);
+
+            // ----------------------- filtering -----------------
+            
+            $("#category").on("change", filtering);
+            $("#year").on("input", filtering);
+            $("#sortOptions").on("change", filtering);
+
+            let filteredPrizes = prizes;
+
+            function filtering() {
+                let filteredPrizes = prizes;
+                if ($("#category").val()) {
+                    filteredPrizes = filteredPrizes.filter(x => x.category.includes($("#category").val()))
+                }
+                if ($("#year").val()) {
+                    filteredPrizes = filteredPrizes.filter(x => x.year >= $("#year").val())
+                        }
+
+                //sorting
+                let sortOptions = $("#sortOptions").val();
+
+                switch (sortOptions) {
+                    case "yearAsc": filteredPrizes = filteredPrizes.sort((a, b) => a.year - b.year);
+                        break;
+                    case "yearDesc": filteredPrizes = filteredPrizes.sort((a, b) => b.year - a.year);
+                        break;
+                    case "categoryAsc": filteredPrizes = filteredPrizes.sort((a, b) => a.category < b.category ? - 1 : 1);
+                        break;
+                    case "categoryDesc": filteredPrizes = filteredPrizes.sort((a, b) => a.category > b.category ? - 1 : 1);
+                        break;
+                    default: filteredPrizes = filteredPrizes.sort((a, b) => a.year - b.year);
+                        break;
+                }
+
+
+                console.log(filteredPrizes);
+                $("table > tbody").html("");            //clear table
+                filteredPrizes.forEach(AppendPrize);   // rebuild the table with filteredPrizes
+            }
+            // call functions to show the result
+            filteredPrizes.forEach(AppendPrize);
+
+
+            function AppendPrize(prize) {
+                let template = `
+                                        <tr>
+                                         <td class="col-3 text-center">${prize.year}</td>
+                                         <td class="col-3">${prize.category}</td>
+                                         <td>
+                                            <ul>
+                                                 ${PrintData(prize)}
+                                            </ul>
+                                        </td>
+                                        <tr>
+                                        `
+
+                let rowTable = $(template); // create element
+
+
+                $("table > tbody").append(rowTable);
+            }
+
+            function PrintData(prize) {
+                if (prize.laureates) {
+                    return prize.laureates.map(x => ` <li onmouseover="GetCountry(${x.id})" id="${x.id}" class="list-inline-item">${x.firstname} ${x.surname ? x.surname : ""} </li> `).join("|")
+                } else {
+                    return ` <li>${prize.overallMotivation}</li> `
+                }
+            }
+
+
+
+
+
+            function InitFiltering(prizes) {
+
+                CreateSelectOptionForCategories();
+                CreateRangeSlider();
+
+                function CreateSelectOptionForCategories() {
+
+                    // create select option for categories ---> start
+
+                    let categories = prizes.map(x => x.category);
+                    console.log(categories);
+
+                    let distinctCategory = [...new Set(categories)];
+                    console.log(distinctCategory);
+
+                    $('#category').append(distinctCategory.map(x => `<option>${x}</option>`))
+
+                    // create select option for categories ---> end
+                }
+
+                function CreateRangeSlider() {
+                    let min = Math.min(...prizes.map(x => x.year));
+                    let max = Math.max(...prizes.map(x => x.year));
+
+                    //rangeMonitor  year
+                    $("#year").attr("min", min);
+                    $("#year").attr("max", max);
+                    $("#year").val(min);
+                    $("#rangeMonitor").text(min);
+
+                    $("#year").on("input", function () {
+                        $("#rangeMonitor").text($(this).val())
+                    })
+                }
+            }
+
+        });
+
+        
+    </script>
+    <!--- End javascript section-->
+</body>
+</html>
